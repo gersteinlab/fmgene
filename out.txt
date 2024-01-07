@@ -1,0 +1,13 @@
+Dataset Resting
+training...
+epoch 10: valid_loss = 0.548
+epoch 20: valid_loss = 0.527
+epoch 30: valid_loss = 0.497
+epoch 40: valid_loss = 0.473
+epoch 50: valid_loss = 0.450
+epoch 60: valid_loss = 0.431
+epoch 70: valid_loss = 0.413
+epoch 80: valid_loss = 0.396
+epoch 90: valid_loss = 0.382
+epoch 100: valid_loss = 0.369
+best model saved at 100th epoch: 0.3689640487233798
