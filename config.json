@@ -140,7 +140,7 @@
     },
     
     "merged_105":{
-        "epochs": 5,
+        "epochs": 15,
         "model_name": "merged_",
         "type": "Resting",
         "seed": 1000,

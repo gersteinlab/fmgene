@@ -164,8 +164,6 @@ class _MLP_fMRI(nn.Module):
         return torch.sigmoid(x)
 
 class _Merged(nn.Module):
-    # specifically for dummpy data
-    # to be updated when the actual data are available
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -204,9 +202,9 @@ class _Merged(nn.Module):
         x_fmri = self.fc2(x_fmri)
         x_fmri = self.ao(x_fmri)
         # print(x_fmri.shape)
-        gene_avg = torch.mean(gene, dim=1)
+        # gene_avg = torch.mean(gene, dim=1)
         # print("Average of gene features:", gene_avg)
-        x_fmri_avg = torch.mean(x_fmri, dim=1)
+        # x_fmri_avg = torch.mean(x_fmri, dim=1)
         # print("Average of fMRI features:", x_fmri_avg)
         # sys.exit()
         combined = torch.cat((x_fmri, gene), dim=1)

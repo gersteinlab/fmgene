@@ -88,7 +88,34 @@ def NeuralNet(config, train, wrapper):
                     black_bg=False,
                 )
                 display.savefig(f'plot/fmri_with_filtered_shap_overlay_label_{label_val}_instance_{count}.png')
+                display.savefig(f'plot/fmri_with_filtered_shap_overlay_label_{label_val}_instance_{count}.tiff')
                 display.close()
+
+                mni152_template = datasets.load_mni152_template()
+                display_shap = plotting.plot_stat_map(
+                    normalized_shap_nifti,
+                    display_mode='z',  # Adjust this to choose the axis for MIP ('x', 'y', or 'z')
+                    cmap='hot',
+                    title="SHAP Values MIP",
+                    colorbar=True,
+                    threshold='auto',  # Automatically choose a threshold to highlight significant SHAP values
+                    black_bg=True,
+                )
+                display_shap.savefig(f'plot/shap_values_mip_label_{label_val}_instance_{count}.png')
+                display_shap.savefig(f'plot/shap_values_mip_label_{label_val}_instance_{count}.tiff')
+                display_shap.close()
+
+                # fMRI MIP using the MNI152 template or the adjusted fMRI image
+                display_fmri = plotting.plot_img(
+                    mni152_template,  # Replace with `normalized_fmri_nifti` if using individual fMRI images
+                    display_mode='z',  # Use the same axis as for SHAP MIP for consistency
+                    cmap='gray',
+                    title="fMRI MIP",
+                    black_bg=True,
+                )
+                display_fmri.savefig(f'plot/fmri_mip_label_{label_val}_instance_{count}.png')
+                display_fmri.savefig(f'plot/fmri_mip_label_{label_val}_instance_{count}.tiff')
+                display_fmri.close()
                 count += 1
                 if count >= 5:
                     break

@@ -2,12 +2,72 @@ import os
 import shutil
 import torch
 import matplotlib.pyplot as plt
+plt.rcParams.update({'font.size': 22})  # Increase the base font size
+
 import numpy as np
 from networks import CNN_Wrapper  # Ensure this is the correct import
 from utils import read_json  # Ensure this is the correct import
 from scipy.ndimage import zoom  # For upsampling
 
 def visualize_cnn_feature_maps(model, dataloader, input_shape=(64,64,24)):
+    if not os.path.exists('./cnn_vis'):
+        os.makedirs('./cnn_vis')
+
+    first_conv_layer = next(model.net.children())
+
+    ad_count, nc_count = 0, 0
+
+    for test_batch_data in dataloader:
+        if ad_count >= 5 and nc_count >= 5:
+            print('5 pairs ok.')
+            break
+
+        test_fmri, _, labels = test_batch_data
+        test_fmri = test_fmri.to('cuda', dtype=torch.float)
+
+        with torch.no_grad():
+            feature_maps = first_conv_layer(test_fmri)
+
+        feature_maps = feature_maps.cpu().numpy()
+        num_feature_maps = feature_maps.shape[1]
+
+        for label in np.unique(labels):
+            if (label == 1 and ad_count >= 5) or (label == 0 and nc_count >= 5):
+                continue
+
+            label_indices = np.where(labels == label)[0]
+            label_feature_maps = feature_maps[label_indices]
+
+            pooled_feature_maps = np.max(label_feature_maps, axis=(0, -1))
+
+            fig, axs = plt.subplots(4, 4, figsize=(20, 20))
+
+            for i in range(num_feature_maps):
+                feature_map = pooled_feature_maps[i]
+                normalized_feature_map = (feature_map - np.min(feature_map)) / (np.max(feature_map) - np.min(feature_map))
+
+                zoom_factors = [input_shape[j]/feature_map.shape[j] for j in range(2)]
+                upsampled_feature_map = zoom(normalized_feature_map, zoom_factors, order=1)
+
+                ax = axs[i // 4, i % 4]
+                im = ax.imshow(upsampled_feature_map, cmap='gray', vmin=0, vmax=1)
+                ax.set_title(f'Feature Map {i}')
+                ax.axis('off')
+
+            fig.colorbar(im, ax=axs.ravel().tolist(), orientation='vertical', fraction=0.01, pad=0.01)
+            label_title = 'AD' if label == 1 else 'NC'
+            plt.suptitle(f'Max-Pooled and Normalized Feature Maps for {label_title}')
+            # Save the figure as TIFF and PNG
+            plt.savefig(f'cnn_vis/pooled_normalized_feature_maps_{label_title}_{ad_count+1 if label == 1 else nc_count+1}.tiff', format='tiff')
+            plt.savefig(f'cnn_vis/pooled_normalized_feature_maps_{label_title}_{ad_count+1 if label == 1 else nc_count+1}.png', format='png')
+            plt.close()
+
+            if label == 1:
+                ad_count += 1
+            else:
+                nc_count += 1
+
+def visualize_cnn_feature_maps_(model, dataloader, input_shape=(64,64,24)):
     if not os.path.exists('./cnn_vis'):
         os.makedirs('./cnn_vis')
 

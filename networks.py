@@ -666,23 +666,48 @@ class M_Wrapper(Wrapper):
                 loss_all += [loss.item()]
         return np.mean(loss_all)
 
-    def test(self):
-        # similar to train_model_epoch, but need to report accuracy, auc
-        # just return loss for now
+        #basically same as train, but on valid_dataloader
         self.net.eval() #so dr is off
         loss_all = []
-        accu_all = []
         with torch.no_grad():
-            for fmri, gene, label in self.test_dataloader:
-                fmri, gene, label = fmri.to(device, dtype=torch.float), gene.to(device, dtype=torch.float), F.one_hot(label.to(device, dtype=torch.long), num_classes=2).float()
-                # fmri, gene, label = fmri.to(device, dtype=torch.float), gene.to(device, dtype=torch.float), F.one_hot(label, num_classes=2).to(device, dtype=torch.float)
+            for fmri, gene, label in self.valid_dataloader:
+                #fmri, label = fmri.to(device, dtype=torch.float), F.one_hot(label.to(device, dtype=torch.long), num_classes=2).float()
+                fmri, gene, label = fmri.to(device, dtype=torch.float), gene.to(device, dtype=torch.float),  F.one_hot(label.to(device, dtype=torch.long), num_classes=2).float()
 
                 preds = self.net(fmri, gene)
                 loss = self.criterion(preds, label)
+                # print(loss)
+                # print(preds)
+                # print(label)
                 loss_all += [loss.item()]
+        return np.mean(loss_all)
+
+    def test(self, raw=False):
+        self.net.eval() # so dropout is off
+        loss_all = []
+        accu_all = []
+        predictions = []
+        true_labels = []
+        with torch.no_grad():
+            for fmri, gene, label in self.test_dataloader:
+                fmri, gene, label = fmri.to(device, dtype=torch.float), gene.to(device, dtype=torch.float), F.one_hot(label.to(device, dtype=torch.long), num_classes=2).float()
+
+                preds = self.net(fmri, gene)
+                loss = self.criterion(preds, label)
+                loss_all.append(loss.item())
                 acc_test = accuracy_score(label.detach().cpu().numpy(), preds.detach().cpu().numpy()>0.5)
-                accu_all += [acc_test]
-        # print(accu_all)
+                accu_all.append(acc_test)
+
+                # Store raw predictions and labels
+                predictions.append(preds.detach().cpu().numpy())
+                true_labels.append(label.detach().cpu().numpy())
+
+        # Flatten the lists of predictions and true labels
+        predictions = np.concatenate(predictions, axis=0)
+        true_labels = np.concatenate(true_labels, axis=0)
+
+        if raw:
+            return np.mean(loss_all), np.mean(accu_all), predictions, true_labels
         return np.mean(loss_all), np.mean(accu_all)
 
     def save_checkpoint(self, loss):
