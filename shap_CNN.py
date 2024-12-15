@@ -130,10 +130,11 @@ def main():
     os.makedirs('plot', exist_ok=True)
 
     # Load your configuration
-    config_cnn = read_json('./config.json')['cnn_1']
+    # config_cnn = read_json('./config.json')['cnn_1']
+    config_cnn = read_json('./config.json')['cnn_paper']
 
     # Execute the NeuralNet function
-    NeuralNet(config_cnn, train=train, wrapper=CNN_Wrapper)
+    NeuralNet(config_cnn, train=train, wrapper=CNN_paper)
 
 if __name__ == '__main__':
     main()

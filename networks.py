@@ -75,6 +75,9 @@ class Wrapper:
 
         self.test_data = fmri_gene_data(self.config, 'test', 'fmri')
         self.test_dataloader = DataLoader(self.test_data, batch_size=1, shuffle=False, drop_last=True)
+    
+    def count_trainable_params(self):
+        return sum(p.numel() for p in self.net.parameters() if p.requires_grad)
 
     def dataset_ratio(self):
         # Function to calculate and print the label ratio for each dataset split

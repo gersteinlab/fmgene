@@ -27,7 +27,7 @@ class _FCCNN(nn.Module):
         self.a = nn.LeakyReLU()
         self.ao = nn.Sigmoid()
 
-    def forward_(self, fmri, gene):
+    def forward(self, fmri, gene):
         # only put in fmri for now
         # print(fmri.shape)
         x_fmri = self.conv1(fmri)
@@ -48,7 +48,7 @@ class _FCCNN(nn.Module):
         return x_fmri
 
     # specific for shap only due to it's limitation!
-    def forward(self, fmri):
+    def forward_(self, fmri):
         # only put in fmri for now
         # print(fmri.shape)
         x_fmri = self.conv1(fmri)
@@ -247,38 +247,38 @@ class BinaryClassifier3D(nn.Module):
         self.output = nn.Conv3d(64, 2, kernel_size=1)
         self.ao = nn.Sigmoid()
 
-    def forward(self, x, gene):
+    def forward(self, x):
         # print(x.shape)
         # sys.exit()
         x = torch.mean(x, 1, keepdim=True) # input dim is larger than 1 in some dataset due to time series, take average.
         x = self.conv1(x)
         x = self.inorm1(x)
         x = self.pool1(x)
-        x = self.relu(x)
+        x = nn.ReLU()(x)
 
         x = self.conv2(x)
         x = self.inorm2(x)
         x = self.pool2(x)
-        x = self.relu(x)
+        x = nn.ReLU()(x)
 
         x = self.conv3(x)
         x = self.inorm3(x)
         x = self.pool3(x)
-        x = self.relu(x)
+        x = nn.ReLU()(x)
 
         x = self.conv4(x)
         x = self.inorm4(x)
         x = self.pool4(x)
-        x = self.relu(x)
+        x = nn.ReLU()(x)
 
         x = self.conv5(x)
         x = self.inorm5(x)
         x = self.pool5(x)
-        x = self.relu(x)
+        x = nn.ReLU()(x)
 
         x = self.conv6(x)
         x = self.inorm6(x)
-        x = self.relu(x)
+        x = nn.ReLU()(x)
         x = self.avgpool(x)
         x = self.identity(x)
         x = self.output(x)
@@ -287,6 +287,47 @@ class BinaryClassifier3D(nn.Module):
         x = self.ao(x)
 
         return x
+
+    # def forward(self, x, gene):
+    #     # print(x.shape)
+    #     # sys.exit()
+    #     x = torch.mean(x, 1, keepdim=True) # input dim is larger than 1 in some dataset due to time series, take average.
+    #     x = self.conv1(x)
+    #     x = self.inorm1(x)
+    #     x = self.pool1(x)
+    #     x = self.relu(x)
+
+    #     x = self.conv2(x)
+    #     x = self.inorm2(x)
+    #     x = self.pool2(x)
+    #     x = self.relu(x)
+
+    #     x = self.conv3(x)
+    #     x = self.inorm3(x)
+    #     x = self.pool3(x)
+    #     x = self.relu(x)
+
+    #     x = self.conv4(x)
+    #     x = self.inorm4(x)
+    #     x = self.pool4(x)
+    #     x = self.relu(x)
+
+    #     x = self.conv5(x)
+    #     x = self.inorm5(x)
+    #     x = self.pool5(x)
+    #     x = self.relu(x)
+
+    #     x = self.conv6(x)
+    #     x = self.inorm6(x)
+    #     x = self.relu(x)
+    #     x = self.avgpool(x)
+    #     x = self.identity(x)
+    #     x = self.output(x)
+        
+    #     x = x.view(-1,x.shape[1])
+    #     x = self.ao(x)
+
+    #     return x
 
 if __name__ == '__main__':
     # Example sizes

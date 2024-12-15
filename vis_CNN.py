@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 plt.rcParams.update({'font.size': 22})  # Increase the base font size
 
 import numpy as np
-from networks import CNN_Wrapper  # Ensure this is the correct import
+from networks import CNN_Wrapper, CNN_paper  # Ensure this is the correct import
 from utils import read_json  # Ensure this is the correct import
 from scipy.ndimage import zoom  # For upsampling
 
@@ -43,6 +43,9 @@ def visualize_cnn_feature_maps(model, dataloader, input_shape=(64,64,24)):
             fig, axs = plt.subplots(4, 4, figsize=(20, 20))
 
             for i in range(num_feature_maps):
+                if i >= 16:  # Since there are only 16 plots available in a 4x4 grid
+                    print("Warning: More feature maps than subplots available. Some feature maps will not be displayed.")
+                    break
                 feature_map = pooled_feature_maps[i]
                 normalized_feature_map = (feature_map - np.min(feature_map)) / (np.max(feature_map) - np.min(feature_map))
 
@@ -164,10 +167,12 @@ def main():
     os.makedirs('cnn_vis', exist_ok=True)
 
     # Load your configuration
-    config_cnn = read_json('./config.json')['cnn_1']
+    # config_cnn = read_json('./config.json')['cnn_1']
+    config_cnn = read_json('./config.json')['cnn_paper']
 
     # Execute the NeuralNet function
-    NeuralNet(config_cnn, train=train, wrapper=CNN_Wrapper)
+    # NeuralNet(config_cnn, train=train, wrapper=CNN_Wrapper)
+    NeuralNet(config_cnn, train=train, wrapper=CNN_paper)
 
 if __name__ == '__main__':
     main()

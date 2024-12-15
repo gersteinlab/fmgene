@@ -6,10 +6,11 @@ import json
 
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.stats as stats
 
 from sklearn.metrics import accuracy_score, roc_auc_score, precision_score, recall_score, f1_score, matthews_corrcoef, roc_curve, auc
 from networks import CNN_Wrapper, MLP_Wrapper, RNN_Wrapper, M_Wrapper, CNN_paper, MLP_fMRI_Wrapper
-from utils import read_json
+from utils import *
 from numpy import linspace, interp
 
 def plot_AUC(auc_data, dataset_name):
@@ -61,6 +62,8 @@ def NeuralNet(config, train, wrapper):
     mccs = []
     fpr_list = []
     tpr_list = []
+    preds_all = []
+    labels_all = []
     
     config['model_name'] += config['type']
     model_name = config['model_name']
@@ -69,32 +72,37 @@ def NeuralNet(config, train, wrapper):
         config['model_name'] = model_name + str(exp_idx)
         config['seed'] += exp_idx*2
         net = wrapper(config)
-        
+        # print(f"Trainable Parameters for {config['model_name']}: {net.count_trainable_params()}")
+
         if train:
             net.train()
         else:
             net.load()
 
         _, _, preds, labels = net.test(raw=True)
+        preds_all.append(preds)
+        labels_all.append(labels)
         
         preds_rounded = np.round(preds)
         
         accuracy = accuracy_score(labels, preds_rounded)
+        # print('accuracy', accuracy)
         labels_binary = [np.argmax(label) for label in labels]
         preds_binary = [np.argmax(pred) for pred in preds]
         fpr, tpr, _ = roc_curve(labels[:, 1], preds[:, 1])
-        fpr_list.append(fpr)
-        tpr_list.append(tpr)
-        precision = precision_score(labels_binary, preds_binary)
-        recall = recall_score(labels_binary, preds_binary)
-        f1 = f1_score(labels_binary, preds_binary)
-        mcc = matthews_corrcoef(labels_binary, preds_binary)
 
         try:
             roc_auc = roc_auc_score(labels[:,1], preds[:,1])
         except:
             print('skipped one')
             continue
+
+        fpr_list.append(fpr)
+        tpr_list.append(tpr)
+        precision = precision_score(labels_binary, preds_binary)
+        recall = recall_score(labels_binary, preds_binary)
+        f1 = f1_score(labels_binary, preds_binary)
+        mcc = matthews_corrcoef(labels_binary, preds_binary)
 
         accuracies.append(accuracy)
         precisions.append(precision)
@@ -126,7 +134,7 @@ def NeuralNet(config, train, wrapper):
                       f"Average F1 Score: {avg_f1:.4f} (±{std_f1:.4f}), "
                       f"Average MCC: {avg_mcc:.4f} (±{std_mcc:.4f}), "
                       f"Average ROC AUC: {avg_roc_auc:.4f} (±{std_roc_auc:.4f})\n\n")
-    return reports, avg_accuracy, std_accuracy, avg_precision, std_precision, avg_recall, std_recall, avg_f1, std_f1, avg_mcc, std_mcc, avg_roc_auc, std_roc_auc, fpr_list, tpr_list, model_info_str
+    return reports, avg_accuracy, std_accuracy, avg_precision, std_precision, avg_recall, std_recall, avg_f1, std_f1, avg_mcc, std_mcc, avg_roc_auc, std_roc_auc, [preds_all, labels_all], fpr_list, tpr_list, model_info_str
     # print(net.net)
     # net.random_forest()
     # net.dataset_ratio()
@@ -168,29 +176,32 @@ def DecisionNet(configs, train, wrappers):
 # wrappers = [CNN_Wrapper, RNN_Wrapper, ...] # Your list of model wrappers
 # decision_net_accuracy, decision_net_roc_auc = DecisionNet(configs, train=False, wrappers=wrappers)
 
+
 def main():
     auc_data = {
         'Resting': {"Our's": [], "Gupta's": [], "Baseline_RNN": [], "Baseline_MLP": []},
         'MoCo': {"Our's": [], "Gupta's": [], "Baseline_RNN": [], "Baseline_MLP": []},
         'All': {"Our's": [], "Gupta's": [], "Baseline_RNN": [], "Baseline_MLP": []}
     }
+    closeness_ours = []
+    closeness_guptas = []
 
     train = True
     train = False
 
     out = ''
-    # Train CNN
-    # Resting
-    config_cnn = read_json('./config.json')['cnn_105']
-    result = NeuralNet(config_cnn, train=train, wrapper=CNN_Wrapper)
-    out += result[-1]
-    auc_data['Resting']["Our's"].append((result[-3], result[-2]))
+    # # Train CNN
+    # # Resting
+    # config_cnn = read_json('./config.json')['cnn_105']
+    # result = NeuralNet(config_cnn, train=train, wrapper=CNN_Wrapper)
+    # out += result[-1]
+    # auc_data['Resting']["Our's"].append((result[-3], result[-2]))
 
-    # MoCo
-    config_cnn = read_json('./config.json')['cnn_6720']
-    result = NeuralNet(config_cnn, train=train, wrapper=CNN_Wrapper)
-    out += result[-1]
-    auc_data['MoCo']["Our's"].append((result[-3], result[-2]))
+    # # MoCo
+    # config_cnn = read_json('./config.json')['cnn_6720']
+    # result = NeuralNet(config_cnn, train=train, wrapper=CNN_Wrapper)
+    # out += result[-1]
+    # auc_data['MoCo']["Our's"].append((result[-3], result[-2]))
 
     # All
     config_cnn = read_json('./config.json')['cnn_1']
@@ -200,21 +211,24 @@ def main():
     # print(out)
     # sys.exit()
 
+    preds_ours, labels = result[-4]
+    closeness_ours.extend(compute_closeness(preds_ours, labels))
 
-    # Train Gupta's CNN
-    # Resting
-    config_cnn = read_json('./config.json')['cnn_paper']
-    config_cnn['type'] = 'Resting'
-    result = NeuralNet(config_cnn, train=train, wrapper=CNN_paper)
-    out += result[-1]
-    auc_data['Resting']["Gupta's"].append((result[-3], result[-2]))
 
-    # MoCo
-    config_cnn = read_json('./config.json')['cnn_paper']
-    config_cnn['type'] = 'MoCo'
-    result = NeuralNet(config_cnn, train=train, wrapper=CNN_paper)
-    out += result[-1]
-    auc_data['MoCo']["Gupta's"].append((result[-3], result[-2]))
+    # # Train Gupta's CNN
+    # # Resting
+    # config_cnn = read_json('./config.json')['cnn_paper']
+    # config_cnn['type'] = 'Resting'
+    # result = NeuralNet(config_cnn, train=train, wrapper=CNN_paper)
+    # out += result[-1]
+    # auc_data['Resting']["Gupta's"].append((result[-3], result[-2]))
+
+    # # MoCo
+    # config_cnn = read_json('./config.json')['cnn_paper']
+    # config_cnn['type'] = 'MoCo'
+    # result = NeuralNet(config_cnn, train=train, wrapper=CNN_paper)
+    # out += result[-1]
+    # auc_data['MoCo']["Gupta's"].append((result[-3], result[-2]))
     
     # All
     config_cnn = read_json('./config.json')['cnn_paper']
@@ -224,65 +238,74 @@ def main():
     auc_data['All']["Gupta's"].append((result[-3], result[-2]))
     # print(out)
 
-
-    # Train RNN
-    # Resting
-    config_rnn = read_json('./config.json')['rnn_fmri']
-    config_rnn['type'] = 'Resting'
-    config_rnn['input_size'] = 64 * 64 * 48
-    result = NeuralNet(config_rnn, train=train, wrapper=RNN_Wrapper)
-    out += result[-1]
-    auc_data['Resting']["Baseline_RNN"].append((result[-3], result[-2]))
-    
-    # MoCo
-    config_rnn = read_json('./config.json')['rnn_fmri']
-    config_rnn['type'] = 'MoCo'
-    config_rnn['input_size'] = 64 * 64 * 24
-    result = NeuralNet(config_rnn, train=train, wrapper=RNN_Wrapper)
-    out += result[-1]
-    auc_data['MoCo']["Baseline_RNN"].append((result[-3], result[-2]))
-    
-    # All
-    config_rnn = read_json('./config.json')['rnn_fmri']
-    config_rnn['type'] = 'all'
-    config_rnn['input_size'] = 64 * 64 * 24
-    result = NeuralNet(config_rnn, train=train, wrapper=RNN_Wrapper)
-    out += result[-1]
-    auc_data['All']["Baseline_RNN"].append((result[-3], result[-2]))
-    # print(out)
+    preds_guptas, labels = result[-4]
+    closeness_guptas.extend(compute_closeness(preds_guptas, labels))
 
 
-    # Train MLP
-    # Resting
-    config_mlp = read_json('./config.json')['mlp_fmri']
-    config_mlp['type'] = 'Resting'
-    config_mlp['input_size'] = 64 * 64 * 48
-    result = NeuralNet(config_mlp, train=train, wrapper=MLP_fMRI_Wrapper)
-    out += result[-1]
-    auc_data['Resting']["Baseline_MLP"].append((result[-3], result[-2]))
+    # # Train RNN
+    # # Resting
+    # config_rnn = read_json('./config.json')['rnn_fmri']
+    # config_rnn['type'] = 'Resting'
+    # config_rnn['input_size'] = 64 * 64 * 48
+    # result = NeuralNet(config_rnn, train=train, wrapper=RNN_Wrapper)
+    # out += result[-1]
+    # auc_data['Resting']["Baseline_RNN"].append((result[-3], result[-2]))
     
-    # MoCo
-    config_mlp = read_json('./config.json')['mlp_fmri']
-    config_mlp['type'] = 'MoCo'
-    config_mlp['input_size'] = 64 * 64 * 24
-    result = NeuralNet(config_mlp, train=train, wrapper=MLP_fMRI_Wrapper)
-    out += result[-1]
-    auc_data['MoCo']["Baseline_MLP"].append((result[-3], result[-2]))
+    # # MoCo
+    # config_rnn = read_json('./config.json')['rnn_fmri']
+    # config_rnn['type'] = 'MoCo'
+    # config_rnn['input_size'] = 64 * 64 * 24
+    # result = NeuralNet(config_rnn, train=train, wrapper=RNN_Wrapper)
+    # out += result[-1]
+    # auc_data['MoCo']["Baseline_RNN"].append((result[-3], result[-2]))
     
-    # All
-    config_mlp = read_json('./config.json')['mlp_fmri']
-    config_mlp['type'] = 'all'
-    config_mlp['input_size'] = 64 * 64 * 24
-    result = NeuralNet(config_mlp, train=train, wrapper=MLP_fMRI_Wrapper)
-    out += result[-1]
-    auc_data['All']["Baseline_MLP"].append((result[-3], result[-2]))
+    # # All
+    # config_rnn = read_json('./config.json')['rnn_fmri']
+    # config_rnn['type'] = 'all'
+    # config_rnn['input_size'] = 64 * 64 * 24
+    # result = NeuralNet(config_rnn, train=train, wrapper=RNN_Wrapper)
+    # out += result[-1]
+    # auc_data['All']["Baseline_RNN"].append((result[-3], result[-2]))
+    # # print(out)
+
+
+    # # Train MLP
+    # # Resting
+    # config_mlp = read_json('./config.json')['mlp_fmri']
+    # config_mlp['type'] = 'Resting'
+    # config_mlp['input_size'] = 64 * 64 * 48
+    # result = NeuralNet(config_mlp, train=train, wrapper=MLP_fMRI_Wrapper)
+    # out += result[-1]
+    # auc_data['Resting']["Baseline_MLP"].append((result[-3], result[-2]))
+    
+    # # MoCo
+    # config_mlp = read_json('./config.json')['mlp_fmri']
+    # config_mlp['type'] = 'MoCo'
+    # config_mlp['input_size'] = 64 * 64 * 24
+    # result = NeuralNet(config_mlp, train=train, wrapper=MLP_fMRI_Wrapper)
+    # out += result[-1]
+    # auc_data['MoCo']["Baseline_MLP"].append((result[-3], result[-2]))
+    
+    # # All
+    # config_mlp = read_json('./config.json')['mlp_fmri']
+    # config_mlp['type'] = 'all'
+    # config_mlp['input_size'] = 64 * 64 * 24
+    # result = NeuralNet(config_mlp, train=train, wrapper=MLP_fMRI_Wrapper)
+    # out += result[-1]
+    # auc_data['All']["Baseline_MLP"].append((result[-3], result[-2]))
+    
     print(out)
-
     # print(auc_data)
 
-    for dataset in auc_data:
-        plot_AUC(auc_data[dataset], dataset)
+    # for dataset in auc_data:
+    #     plot_AUC(auc_data[dataset], dataset)
 
+    t_stat, p_value_t = stats.ttest_rel(closeness_ours, closeness_guptas)
+    w_stat, p_value_w = stats.wilcoxon(closeness_ours, closeness_guptas)
+
+    print("Closeness Comparison:")
+    print(f"T-test: T-stat={t_stat}, P-value={p_value_t}")
+    print(f"Wilcoxon test: W-stat={w_stat}, P-value={p_value_w}")
 
     # Train MLP
     # config_rnn = read_json('./config.json')['mlp_gene']
